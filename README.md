@@ -1,36 +1,126 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ExamRank — College Coding Examination Portal
 
-## Getting Started
+> **HackerRank-grade online programming exam platform** built for local college server deployment.  
+> Stack: **Next.js 16 · Tailwind CSS v4 · Prisma ORM · MySQL**
 
-First, run the development server:
+---
+
+## ✨ Features
+
+| Feature | Details |
+|---------|---------|
+| 🖥️ Monaco Code Editor | Full VS Code editor in-browser — syntax highlighting, autocomplete |
+| ⏱️ Server-Authoritative Timer | Deadline computed & locked on the server — refreshing can't extend time |
+| 🛡️ Anti-Cheat Sentinel | Fullscreen enforcement, tab-switch detection, clipboard paste blocker, right-click disable |
+| 🚨 Violation System | Escalating warnings → auto-terminate after configurable violation limit |
+| ⚙️ Local Code Execution | C, C++, Python, JavaScript run locally via `clang/clang++/python3/node` — no paid APIs |
+| ✅ Auto Judge | Hidden + visible test cases, whitespace-normalised comparison, float tolerance, partial scoring |
+| 👁️ Live Proctoring | Teacher monitors all candidates in real-time: status, violations, timer, current question |
+| 📊 Analytics & Reports | Class averages, pass rate, per-question accuracy, CSV grade export |
+| 💾 Autosave | Code auto-saved to MySQL every 8 seconds per question — resume after page refresh |
+| 🗃️ Question Bank | Build problems with hidden/sample test cases and language-specific starter code |
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- Node.js 20+
+- MySQL (or `brew install mysql`)
+
+### 1. Install & Set Up
 
 ```bash
+# Install dependencies
+npm install
+
+# Start MySQL (if using Homebrew)
+brew services start mysql
+
+# Push schema to database
+npm run db:push
+
+# Seed demo data
+npm run db:seed
+
+# Start development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Open the App
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Navigate to **http://localhost:3000**
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 3. Demo Credentials
 
-## Learn More
+| Role | Email | Password |
+|------|-------|----------|
+| Student | `student1@college.edu` | `password123` |
+| Teacher | `teacher@college.edu` | `password123` |
+| Admin | `admin@college.edu` | `admin123` |
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🏗️ Project Structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+src/
+├── app/
+│   ├── api/
+│   │   ├── auth/           # login / logout / me
+│   │   ├── exams/          # CRUD + start / run / submit / violation
+│   │   └── questions/      # Question bank CRUD
+│   ├── login/              # Login page
+│   ├── student/            # Student dashboard + exam workspace
+│   └── teacher/            # Teacher dashboard + monitor + results
+├── components/
+│   ├── exam/               # ExamWorkspace (Monaco + anti-cheat)
+│   └── teacher/            # LiveMonitor, ExamResultsView, QuestionBank
+└── lib/
+    ├── auth.ts             # JWT session management
+    ├── judge.ts            # Test case evaluation engine
+    ├── prisma.ts           # DB client singleton
+    ├── runner.ts           # Local subprocess code executor
+    └── utils.ts            # cn(), formatDate(), formatDuration()
 
-## Deploy on Vercel
+prisma/
+├── schema.prisma           # Full MySQL schema (13 models)
+└── seed.ts                 # Demo data seeder
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🔑 Key npm Scripts
+
+```bash
+npm run dev          # Start development server
+npm run build        # Production build
+npm run db:push      # Sync Prisma schema to MySQL
+npm run db:seed      # Seed demo data
+npm run db:studio    # Open Prisma Studio (database GUI)
+```
+
+---
+
+## 🌍 Environment Variables
+
+Copy `.env.example` to `.env` and update:
+
+```env
+DATABASE_URL="mysql://root:@localhost:3306/examrank"
+JWT_SECRET="your-secure-secret-key"
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+```
+
+---
+
+## 🏫 For Production Deployment (College Server)
+
+Use the included `docker-compose.yml`:
+
+```bash
+docker compose up -d
+```
+
+This starts a MySQL 8.4 container + the Next.js app container automatically.
