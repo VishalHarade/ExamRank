@@ -58,7 +58,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     return NextResponse.json({ exam });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("GET /api/exams/[id] error:", err);
     return NextResponse.json({ error: "Failed to load exam" }, { status: 500 });
   }
@@ -73,17 +73,57 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
 
     const body = await req.json();
-    const updated = await prisma.exam.update({
+    const existing = await prisma.exam.findUnique({
       where: { id },
-      data: {
-        ...body,
-        startTime: body.startTime ? new Date(body.startTime) : undefined,
-        endTime: body.endTime ? new Date(body.endTime) : undefined,
-      },
+      select: { id: true, createdById: true },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Exam not found" }, { status: 404 });
+    }
+    if (user.role === Role.TEACHER && existing.createdById !== user.id) {
+      return NextResponse.json({ error: "You can only edit examinations you created" }, { status: 403 });
+    }
+
+    if (body.startTime && body.endTime && new Date(body.endTime) <= new Date(body.startTime)) {
+      return NextResponse.json({ error: "Exam end time must be after its start time" }, { status: 400 });
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const exam = await tx.exam.update({
+        where: { id },
+        data: {
+          title: typeof body.title === "string" ? body.title.trim() : undefined,
+          description: typeof body.description === "string" ? body.description : undefined,
+          instructions: typeof body.instructions === "string" ? body.instructions : undefined,
+          duration: Number.isFinite(Number(body.duration)) ? Number(body.duration) : undefined,
+          startTime: body.startTime ? new Date(body.startTime) : undefined,
+          endTime: body.endTime ? new Date(body.endTime) : undefined,
+          status: body.status,
+          violationLimit: Number.isFinite(Number(body.violationLimit)) ? Number(body.violationLimit) : undefined,
+          passPercentage: Number.isFinite(Number(body.passPercentage)) ? Number(body.passPercentage) : undefined,
+          totalMarks: Array.isArray(body.questionIds) ? body.questionIds.length * 20 : undefined,
+        },
+      });
+
+      if (Array.isArray(body.questionIds)) {
+        await tx.examQuestion.deleteMany({ where: { examId: id } });
+        if (body.questionIds.length > 0) {
+          await tx.examQuestion.createMany({
+            data: body.questionIds.map((questionId: string, orderIndex: number) => ({
+              examId: id,
+              questionId,
+              orderIndex,
+              marks: 20,
+            })),
+          });
+        }
+      }
+
+      return exam;
     });
 
     return NextResponse.json({ success: true, exam: updated });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("PATCH /api/exams/[id] error:", err);
     return NextResponse.json({ error: "Failed to update exam" }, { status: 500 });
   }
@@ -102,7 +142,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     });
 
     return NextResponse.json({ success: true, message: "Exam deleted" });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("DELETE /api/exams/[id] error:", err);
     return NextResponse.json({ error: "Failed to delete exam" }, { status: 500 });
   }

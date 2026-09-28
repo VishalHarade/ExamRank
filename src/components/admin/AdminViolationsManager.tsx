@@ -87,7 +87,7 @@ export function AdminViolationsManager() {
     uniqueTeachers: 0,
   });
   const [loading, setLoading] = useState(true);
-  const [filterType, setFilterType] = useState<"ALL" | "VIOLATIONS" | "FAILED" | "TERMINATED">("ALL");
+  const [filterType, setFilterType] = useState<"ALL" | "ALL_ATTEMPTS" | "VIOLATIONS" | "FAILED" | "TERMINATED">("ALL_ATTEMPTS");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedAttemptIds, setSelectedAttemptIds] = useState<string[]>([]);
   const [expandedAttemptId, setExpandedAttemptId] = useState<string | null>(null);
@@ -233,9 +233,9 @@ export function AdminViolationsManager() {
       </div>
 
       {/* Toolbar: Search, Filters & Bulk Retry */}
-      <div className="bg-[#111722] border border-slate-800 rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-[#111722] border border-slate-800 rounded-2xl p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex flex-1 flex-col sm:flex-row items-center gap-3">
-          <div className="relative w-full sm:w-80">
+          <div className="relative w-full sm:w-64 shrink-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
@@ -249,7 +249,8 @@ export function AdminViolationsManager() {
           <div className="flex items-center gap-1.5 bg-[#0B0F17] border border-slate-800 rounded-lg p-1 self-start sm:self-auto">
             {(
               [
-                { id: "ALL", label: "All Incidents" },
+                { id: "ALL_ATTEMPTS", label: "All Attempts" },
+                { id: "ALL", label: "Incidents" },
                 { id: "VIOLATIONS", label: "Violations" },
                 { id: "FAILED", label: "Failed" },
                 { id: "TERMINATED", label: "Disqualified" },
@@ -270,7 +271,7 @@ export function AdminViolationsManager() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
           {selectedAttemptIds.length > 0 && (
             <button
               onClick={() => executeRetry(selectedAttemptIds)}

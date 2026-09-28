@@ -75,7 +75,7 @@ export async function GET() {
 
       return NextResponse.json({ exams });
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("GET /api/exams error:", err);
     return NextResponse.json({ error: "Failed to load exams" }, { status: 500 });
   }
@@ -98,6 +98,7 @@ export async function POST(req: NextRequest) {
       endTime,
       status,
       violationLimit,
+      passPercentage,
       allowedLanguages,
       questionIds, // array of question IDs
     } = body;
@@ -116,6 +117,8 @@ export async function POST(req: NextRequest) {
         endTime: new Date(endTime),
         status: status || "ACTIVE",
         violationLimit: violationLimit ? parseInt(violationLimit) : 3,
+        passPercentage: passPercentage ? parseFloat(passPercentage) : 40,
+        totalMarks: questionIds?.length ? questionIds.length * 20 : 100,
         allowedLanguages: allowedLanguages || "c,cpp,python,javascript",
         createdById: user.id,
         examQuestions: questionIds && questionIds.length > 0 ? {
@@ -132,8 +135,8 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ success: true, exam }, { status: 201 });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("POST /api/exams error:", err);
-    return NextResponse.json({ error: err.message || "Failed to create exam" }, { status: 500 });
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Failed to create exam" }, { status: 500 });
   }
 }

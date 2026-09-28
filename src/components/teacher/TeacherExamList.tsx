@@ -5,22 +5,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Plus,
-  PlayCircle,
   Eye,
   BarChart3,
-  Calendar,
   Clock,
-  ShieldAlert,
   X,
-  CheckCircle2,
+  Pencil,
   Trash2,
   Layers,
-  ChevronRight,
   Search,
-  BookOpen,
-  Filter,
   Check,
-  AlertTriangle,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
@@ -36,10 +29,12 @@ interface ExamItem {
   title: string;
   description: string;
   duration: number;
+  instructions?: string | null;
   startTime: string;
   endTime: string;
   status: string;
   violationLimit: number;
+  passPercentage?: number;
   totalMarks: number;
   examQuestions: { id: string; question: { id: string; title: string; difficulty: string } }[];
   attempts: { id: string; status: string; totalScore: number }[];
@@ -58,8 +53,9 @@ export function TeacherExamList({ initialExams, availableQuestions }: TeacherExa
 
   // Create Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingExam, setEditingExam] = useState<ExamItem | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [questionSearch, setQuestionSearch] = useState("");
+  const [formError, setFormError] = useState("");
 
   // New exam form state
   const [title, setTitle] = useState("");
@@ -89,14 +85,15 @@ export function TeacherExamList({ initialExams, availableQuestions }: TeacherExa
     );
   };
 
-  const handleCreateExam = async (e: React.FormEvent) => {
+  const handleSaveExam = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
     setIsSubmitting(true);
+    setFormError("");
 
     try {
-      const res = await fetch("/api/exams", {
-        method: "POST",
+      const res = await fetch(editingExam ? `/api/exams/${editingExam.id}` : "/api/exams", {
+        method: editingExam ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: title.trim(),
@@ -107,22 +104,49 @@ export function TeacherExamList({ initialExams, availableQuestions }: TeacherExa
           endTime: new Date(endTime).toISOString(),
           status,
           violationLimit: parseInt(violationLimit) || 3,
+          passPercentage: parseFloat(passPercentage) || 40,
           questionIds: selectedQuestionIds,
         }),
       });
 
       if (res.ok) {
         setShowCreateModal(false);
+        setEditingExam(null);
         router.refresh();
         setTitle("");
         setDescription("");
         setSelectedQuestionIds([]);
+      } else {
+        const data = await res.json();
+        setFormError(data.error || "Unable to save this examination.");
       }
     } catch (err) {
       console.error("Create exam error:", err);
+      setFormError("Unable to save this examination. Check your connection and try again.");
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const openEditExam = (exam: ExamItem) => {
+    const toLocalDateTime = (value: string) => {
+      const date = new Date(value);
+      return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+    };
+
+    setEditingExam(exam);
+    setTitle(exam.title);
+    setDescription(exam.description || "");
+    setInstructions(exam.instructions || "");
+    setDuration(String(exam.duration));
+    setViolationLimit(String(exam.violationLimit));
+    setPassPercentage(String(exam.passPercentage ?? 40));
+    setStatus(exam.status);
+    setStartTime(toLocalDateTime(exam.startTime));
+    setEndTime(toLocalDateTime(exam.endTime));
+    setSelectedQuestionIds(exam.examQuestions.map((item) => item.question.id));
+    setFormError("");
+    setShowCreateModal(true);
   };
 
   const handleDeleteExam = async (examId: string) => {
@@ -177,9 +201,9 @@ export function TeacherExamList({ initialExams, availableQuestions }: TeacherExa
   return (
     <section className="space-y-6">
       {/* Action Toolbar: Search, Filters & Create */}
-      <div className="bg-[#0E1524] border border-slate-800 rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
+      <div className="bg-[#0E1524] border border-slate-800 rounded-2xl p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-sm">
         <div className="flex flex-1 flex-col sm:flex-row items-center gap-3">
-          <div className="relative w-full sm:w-80">
+          <div className="relative w-full sm:w-64 shrink-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
@@ -214,7 +238,19 @@ export function TeacherExamList({ initialExams, availableQuestions }: TeacherExa
         </div>
 
         <button
-          onClick={() => setShowCreateModal(true)}
+          onClick={() => {
+            setEditingExam(null);
+            setTitle("");
+            setDescription("");
+            setInstructions("");
+            setDuration("60");
+            setViolationLimit("3");
+            setPassPercentage("40");
+            setStatus("ACTIVE");
+            setSelectedQuestionIds([]);
+            setFormError("");
+            setShowCreateModal(true);
+          }}
           className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-purple-600 hover:bg-purple-500 shadow-md shadow-purple-600/30 transition-all shrink-0"
         >
           <Plus className="h-4 w-4" />
@@ -298,6 +334,13 @@ export function TeacherExamList({ initialExams, availableQuestions }: TeacherExa
 
                 {/* Action Buttons & Status Selector */}
                 <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => openEditExam(exam)}
+                    className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition flex items-center gap-1.5"
+                  >
+                    <Pencil className="h-3.5 w-3.5" /> Edit
+                  </button>
+
                   <Link
                     href={`/teacher/exams/${exam.id}/monitor`}
                     className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition border ${
@@ -354,19 +397,22 @@ export function TeacherExamList({ initialExams, availableQuestions }: TeacherExa
                   <Plus className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-white">Schedule New Examination</h3>
-                  <p className="text-xs text-slate-400">Configure parameters, proctoring security &amp; question set</p>
+                  <h3 className="text-lg font-bold text-white">{editingExam ? "Edit Examination" : "Schedule New Examination"}</h3>
+                  <p className="text-xs text-slate-400">Update schedule, exam settings, instructions, and question set</p>
                 </div>
               </div>
               <button
-                onClick={() => setShowCreateModal(false)}
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setEditingExam(null);
+                }}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateExam} className="space-y-4 text-xs">
+            <form onSubmit={handleSaveExam} className="space-y-4 text-xs">
               <div>
                 <label className="block text-slate-300 font-semibold mb-1">
                   Examination Title *
@@ -391,6 +437,16 @@ export function TeacherExamList({ initialExams, availableQuestions }: TeacherExa
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full px-3.5 py-2 rounded-xl bg-[#070B13] border border-slate-700 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-purple-500 resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Student Instructions</label>
+                <textarea
+                  rows={3}
+                  value={instructions}
+                  onChange={(e) => setInstructions(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl bg-[#070B13] border border-slate-700 text-xs text-white focus:outline-none focus:border-purple-500 resize-y"
                 />
               </div>
 
@@ -545,7 +601,10 @@ export function TeacherExamList({ initialExams, availableQuestions }: TeacherExa
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
                 <button
                   type="button"
-                  onClick={() => setShowCreateModal(false)}
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    setEditingExam(null);
+                  }}
                   className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white bg-slate-900 border border-slate-800"
                 >
                   Cancel
@@ -555,9 +614,10 @@ export function TeacherExamList({ initialExams, availableQuestions }: TeacherExa
                   disabled={isSubmitting || !title.trim()}
                   className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-purple-600 hover:bg-purple-500 disabled:opacity-50 shadow-md shadow-purple-600/30 transition-all"
                 >
-                  {isSubmitting ? "Creating..." : "Save & Publish Exam"}
+                  {isSubmitting ? "Saving..." : editingExam ? "Save Changes" : "Save & Publish Exam"}
                 </button>
               </div>
+              {formError && <p role="alert" className="text-rose-400">{formError}</p>}
             </form>
           </div>
         </div>

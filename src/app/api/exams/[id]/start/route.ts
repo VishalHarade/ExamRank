@@ -36,20 +36,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     const now = new Date();
 
-    // Check if exam is within valid time bounds
-    if (exam.status !== "ACTIVE" && exam.status !== "PUBLISHED") {
-      return NextResponse.json({ error: "This exam is currently not open for attempts." }, { status: 403 });
-    }
-
-    if (now < exam.startTime) {
-      return NextResponse.json({ error: "This exam has not started yet." }, { status: 403 });
-    }
-
-    if (now > exam.endTime) {
-      return NextResponse.json({ error: "This exam deadline has already passed." }, { status: 403 });
-    }
-
-    // Check for existing attempt
     let attempt = await prisma.examAttempt.findUnique({
       where: {
         examId_studentId: {
@@ -61,6 +47,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         submissions: true,
       },
     });
+
+    const hasAdminGrantedRetry = attempt?.status === AttemptStatus.NOT_STARTED;
+    const hasStartedAttempt = attempt?.status === AttemptStatus.IN_PROGRESS;
+
+    if (!hasAdminGrantedRetry && !hasStartedAttempt) {
+      if (exam.status !== "ACTIVE" && exam.status !== "PUBLISHED") {
+        return NextResponse.json({ error: "This exam is currently not open for attempts." }, { status: 403 });
+      }
+
+      if (now < exam.startTime) {
+        return NextResponse.json({ error: "This exam has not started yet." }, { status: 403 });
+      }
+
+      if (now > exam.endTime) {
+        return NextResponse.json({ error: "This exam deadline has already passed." }, { status: 403 });
+      }
+    }
 
     if (attempt) {
       // If already submitted or terminated, reject or return state
@@ -86,6 +89,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           isFinished: true,
           message: "Exam time has expired. Your submission was recorded.",
         });
+      }
+
+      if (hasAdminGrantedRetry) {
+        const durationMs = exam.duration * 60 * 1000;
+        attempt = await prisma.examAttempt.update({
+          where: { id: attempt.id },
+          data: {
+            status: AttemptStatus.IN_PROGRESS,
+            startedAt: now,
+            endTime: new Date(now.getTime() + durationMs),
+            currentQuestionId: exam.examQuestions[0]?.questionId || null,
+          },
+          include: { submissions: true },
+        });
+        return NextResponse.json({ attempt, exam, isFinished: false });
       }
 
       return NextResponse.json({
@@ -123,7 +141,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       exam,
       isFinished: false,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("POST /api/exams/[id]/start error:", err);
     return NextResponse.json({ error: "Failed to initiate exam attempt" }, { status: 500 });
   }

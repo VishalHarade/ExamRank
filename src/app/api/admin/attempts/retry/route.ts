@@ -43,40 +43,30 @@ export async function POST(req: NextRequest) {
 
     const validAttemptIds = existingAttempts.map((a) => a.id);
 
-    // 1. Delete test results
-    await prisma.submissionTestResult.deleteMany({
-      where: {
-        submission: {
-          attemptId: { in: validAttemptIds },
-        },
-      },
-    });
+    const resetResult = await prisma.$transaction(async (tx) => {
+      await tx.submissionTestResult.deleteMany({
+        where: { submission: { attemptId: { in: validAttemptIds } } },
+      });
+      await tx.submission.deleteMany({ where: { attemptId: { in: validAttemptIds } } });
+      await tx.violation.deleteMany({ where: { attemptId: { in: validAttemptIds } } });
 
-    // 2. Delete submissions
-    await prisma.submission.deleteMany({
-      where: {
-        attemptId: { in: validAttemptIds },
-      },
-    });
-
-    // 3. Delete recorded violations for these attempts
-    await prisma.violation.deleteMany({
-      where: {
-        attemptId: { in: validAttemptIds },
-      },
-    });
-
-    // 4. Delete the attempts themselves so the unique [examId, studentId] constraint is unlocked
-    const deleteResult = await prisma.examAttempt.deleteMany({
-      where: {
-        id: { in: validAttemptIds },
-      },
-    });
-
-    // 5. Create audit logs for each granted retry
-    for (const att of existingAttempts) {
-      await prisma.auditLog.create({
+      const updatedAttempts = await tx.examAttempt.updateMany({
+        where: { id: { in: validAttemptIds } },
         data: {
+          status: "NOT_STARTED",
+          startedAt: null,
+          submittedAt: null,
+          endTime: null,
+          totalScore: 0,
+          percentage: 0,
+          violationCount: 0,
+          currentQuestionId: null,
+          autosavedCode: null,
+        },
+      });
+
+      await tx.auditLog.createMany({
+        data: existingAttempts.map((att) => ({
           userId: admin.id,
           action: "ALLOW_EXAM_RETRY",
           entity: "ExamAttempt",
@@ -92,21 +82,23 @@ export async function POST(req: NextRequest) {
             adminName: admin.name,
             timestamp: new Date().toISOString(),
           }),
-        },
+        })),
       });
-    }
+
+      return updatedAttempts;
+    });
 
     return NextResponse.json({
       success: true,
-      unlockedCount: deleteResult.count,
-      message: `Exam retry successfully granted for ${deleteResult.count} student attempt(s). They can now retake the exam immediately.`,
+      unlockedCount: resetResult.count,
+      message: `Exam retry successfully granted for ${resetResult.count} student attempt(s). They can now retake the exam immediately.`,
       retriedStudents: existingAttempts.map((a) => ({
         studentName: a.student.name,
         examTitle: a.exam.title,
         usn: a.student.usn,
       })),
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("POST /api/admin/attempts/retry error:", err);
     return NextResponse.json({ error: "Failed to allow exam retry" }, { status: 500 });
   }

@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    const filter = searchParams.get("filter") || "ALL"; // ALL | VIOLATIONS | FAILED | TERMINATED
+    const filter = searchParams.get("filter") || "ALL"; // ALL | ALL_ATTEMPTS | VIOLATIONS | FAILED | TERMINATED
     const teacherId = searchParams.get("teacherId");
     const examId = searchParams.get("examId");
 
@@ -121,6 +121,7 @@ export async function GET(req: NextRequest) {
       })
       .filter((rec) => {
         // Keep only incidents: violations or failed or terminated
+        if (filter === "ALL_ATTEMPTS") return true;
         if (filter === "VIOLATIONS") return rec.hasViolations;
         if (filter === "FAILED") return rec.isFailed;
         if (filter === "TERMINATED") return rec.isTerminated || rec.violationLimitExceeded;
@@ -147,7 +148,7 @@ export async function GET(req: NextRequest) {
         uniqueTeachers,
       },
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("GET /api/admin/violations error:", err);
     return NextResponse.json({ error: "Failed to retrieve incident records" }, { status: 500 });
   }

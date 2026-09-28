@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LogOut, BarChart3, BookOpen, Layers } from "lucide-react";
+import { ThemeToggle } from "@/components/ThemeProvider";
 
 interface NavbarProps {
   user?: {
@@ -132,6 +133,7 @@ export function Navbar({ user }: NavbarProps) {
         </div>
 
         <div className="flex items-center gap-3">
+          <ThemeToggle />
           {user ? (
             <div className="flex items-center gap-3">
               <div className="hidden sm:flex flex-col text-right">

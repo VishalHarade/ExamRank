@@ -1,8 +1,7 @@
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
-import { ExamWorkspace } from "@/components/exam/ExamWorkspace";
-import { AttemptStatus } from "@prisma/client";
+import { ExamWorkspace, type Attempt, type Exam } from "@/components/exam/ExamWorkspace";
 
 export default async function ExamPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -38,8 +37,9 @@ export default async function ExamPage({ params }: { params: Promise<{ id: strin
 
   const now = new Date();
 
-  // Find or create attempt
-  let attempt = await prisma.examAttempt.findUnique({
+  // Loading the briefing must not start the exam clock. Attempts begin only
+  // after the student accepts the rules through the start endpoint.
+  const attempt = await prisma.examAttempt.findUnique({
     where: {
       examId_studentId: {
         examId: exam.id,
@@ -48,20 +48,12 @@ export default async function ExamPage({ params }: { params: Promise<{ id: strin
     },
   });
 
-  if (!attempt) {
-    const durationMs = exam.duration * 60 * 1000;
-    const computedDeadline = new Date(Math.min(now.getTime() + durationMs, exam.endTime.getTime()));
-
-    attempt = await prisma.examAttempt.create({
-      data: {
-        examId: exam.id,
-        studentId: user.id,
-        status: AttemptStatus.IN_PROGRESS,
-        startedAt: now,
-        endTime: computedDeadline,
-        currentQuestionId: exam.examQuestions[0]?.questionId || null,
-      },
-    });
+  if (!attempt && (
+    (exam.status !== "ACTIVE" && exam.status !== "PUBLISHED") ||
+    now < exam.startTime ||
+    now > exam.endTime
+  )) {
+    redirect("/student");
   }
 
   // Format dates to ISO strings for client props
@@ -86,14 +78,21 @@ export default async function ExamPage({ params }: { params: Promise<{ id: strin
     })),
   };
 
-  const serializedAttempt = {
-    ...attempt,
-    startedAt: attempt.startedAt ? attempt.startedAt.toISOString() : null,
-    submittedAt: attempt.submittedAt ? attempt.submittedAt.toISOString() : null,
-    endTime: attempt.endTime ? attempt.endTime.toISOString() : null,
-    createdAt: attempt.createdAt.toISOString(),
-    updatedAt: attempt.updatedAt.toISOString(),
-  };
+  const serializedAttempt = attempt
+    ? {
+        ...attempt,
+        startedAt: attempt.startedAt ? attempt.startedAt.toISOString() : null,
+        submittedAt: attempt.submittedAt ? attempt.submittedAt.toISOString() : null,
+        endTime: attempt.endTime ? attempt.endTime.toISOString() : null,
+        createdAt: attempt.createdAt.toISOString(),
+        updatedAt: attempt.updatedAt.toISOString(),
+      }
+    : null;
 
-  return <ExamWorkspace initialExam={serializedExam as any} initialAttempt={serializedAttempt as any} />;
+  return (
+    <ExamWorkspace
+      initialExam={serializedExam as unknown as Exam}
+      initialAttempt={serializedAttempt as unknown as Attempt | null}
+    />
+  );
 }

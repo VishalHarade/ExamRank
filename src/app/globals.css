@@ -40,6 +40,113 @@ body {
   font-feature-settings: "rlig" 1, "calt" 1;
 }
 
+html,
+body {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+html[data-theme="light"] body {
+  background-color: #f4f7f5;
+  color: #1c2923;
+}
+
+html[data-theme="light"] :is(
+  [class*="bg-[#070"],
+  [class*="bg-[#090"],
+  [class*="bg-[#0B"],
+  [class*="bg-[#0b"],
+  [class*="bg-[#0d"],
+  [class*="bg-[#0E"],
+  [class*="bg-[#0e"],
+  [class*="bg-[#101"],
+  [class*="bg-[#111"],
+  [class*="bg-[#121"],
+  [class*="bg-[#151"],
+  [class*="bg-[#172"],
+  [class*="bg-[#182"],
+  [class*="bg-[#1c"],
+  [class*="bg-[#202"],
+  [class*="bg-[#253"],
+  [class*="bg-[#293"],
+  [class*="bg-[#303"],
+  [class*="bg-slate-950"],
+  [class*="bg-slate-900"],
+  [class*="bg-slate-800"]
+) {
+  background-color: #fff !important;
+}
+
+html[data-theme="light"] :is(
+  [class*="border-white/"],
+  [class*="border-slate-900"],
+  [class*="border-slate-800"],
+  [class*="border-slate-700"]
+) {
+  border-color: #dce5df !important;
+}
+
+html[data-theme="light"] :is(
+  [class~="text-white"],
+  [class*="text-slate-100"],
+  [class*="text-slate-200"],
+  [class*="text-slate-300"],
+  [class*="text-slate-400"],
+  [class*="text-slate-500"],
+  [class*="text-slate-600"]
+) {
+  color: #34463c !important;
+}
+
+html[data-theme="light"] [class~="text-white"]:is(
+  [class*="bg-blue-"],
+  [class*="bg-purple-"],
+  [class*="bg-emerald-"],
+  [class*="bg-green-"],
+  [class*="bg-amber-"],
+  [class*="bg-rose-"],
+  [class*="bg-red-"],
+  [class*="bg-[#14885a]"],
+  [class*="bg-[#16884f]"],
+  [class*="bg-[#1b7548]"]
+) {
+  color: #fff !important;
+}
+
+html[data-theme="light"] header[class] {
+  background-color: rgb(255 255 255 / 96%) !important;
+  border-color: #dce5df !important;
+}
+
+html[data-theme="light"] .glass-panel,
+html[data-theme="light"] .glass-card {
+  background: #fff;
+  border-color: #dce5df;
+  box-shadow: 0 8px 24px rgb(30 50 38 / 6%);
+}
+
+html[data-theme="light"] .glass-input {
+  background: #fff;
+  border-color: #cbd8d0;
+  color: #1c2923;
+}
+
+html[data-theme="light"] ::-webkit-scrollbar-track {
+  background: #edf2ee;
+}
+
+html[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: #b7c6bc;
+}
+
+html[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: #91a699;
+}
+
+html[data-theme="light"] body[class*="bg-[#070"] {
+  background-color: #f4f7f5 !important;
+}
+
 /* Custom scrollbars for clean IDE look */
 ::-webkit-scrollbar {
   width: 6px;
